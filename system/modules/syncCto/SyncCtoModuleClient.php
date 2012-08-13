@@ -542,6 +542,18 @@ class SyncCtoModuleClient extends BackendModule
                 {
                     break;
                 }
+                
+            // Check if there are some extensions
+            case 5:
+                if (isset($GLOBALS['TL_HOOKS']['syncCto_To']) && is_array($GLOBALS['TL_HOOKS']['syncCto_To']) && count($GLOBALS['TL_HOOKS']['syncCto_To'] != 0))
+                {
+                    break;
+                }
+                else
+                {
+                    $this->intStep++;
+                    $this->objData->nextStep();
+                }
         }
 
         // Load step pool for current step
@@ -574,10 +586,15 @@ class SyncCtoModuleClient extends BackendModule
                 $this->pageSyncToShowStep4();
                 break;
 
-            // Import Files | Import Config | etc.
+            // API
             case 5:
-                $this->loadTempLists();
                 $this->pageSyncToShowStep5();
+                break;
+
+            // Import Files | Import Config | etc.
+            case 6:
+                $this->loadTempLists();
+                $this->pageSyncToShowStep6();
                 $this->saveTempLists();
                 break;
 
@@ -681,6 +698,18 @@ class SyncCtoModuleClient extends BackendModule
                 {
                     break;
                 }
+
+            // Check if there are some extensions
+            case 5:
+                if (isset($GLOBALS['TL_HOOKS']['syncCto_From']) && is_array($GLOBALS['TL_HOOKS']['syncCto_From']) && count($GLOBALS['TL_HOOKS']['syncCto_From'] != 0))
+                {
+                    break;
+                }
+                else
+                {
+                    $this->intStep++;
+                    $this->objData->nextStep();
+                }
         }
 
         // Load step pool for current step
@@ -713,10 +742,15 @@ class SyncCtoModuleClient extends BackendModule
                 $this->pageSyncFromShowStep4();
                 break;
 
-            // Import Files | Import Config | etc.
+            // API
             case 5:
+//                $this->pageSyncFromShowStep5();
+//                break;
+
+            // Import Files | Import Config | etc.
+            case 6:
                 $this->loadTempLists();
-                $this->pageSyncFromShowStep5();
+                $this->pageSyncFromShowStep6();
                 $this->saveTempLists();
                 break;
 
@@ -2022,11 +2056,148 @@ class SyncCtoModuleClient extends BackendModule
             $this->objData->setState(SyncCtoEnum::WORK_ERROR);
         }
     }
-
+    
+    
+    
     /**
-     * 
+     * API
      */
     private function pageSyncToShowStep5()
+    {
+        /* ---------------------------------------------------------------------
+         * Init
+         */
+
+        if ($this->objStepPool->step == null)
+        {
+            $this->objStepPool->step = 1;
+        }
+
+        // Set content back to normale mode
+        if ($this->booError == true)
+        {
+            $this->booError = false;
+            $this->strError = "";
+            $this->objData->setState(SyncCtoEnum::WORK_WORK);
+
+            $this->objStepPool->step = 1;
+        }
+
+        /* ---------------------------------------------------------------------
+         * Run page
+         */
+
+        try
+        {
+            switch ($this->objStepPool->step)
+            {
+                /**
+                 * Init
+                 */
+                case 1:
+
+                    $this->objData->setState(SyncCtoEnum::WORK_WORK);
+                    $this->objData->setTitle($GLOBALS['TL_LANG']['MSC']['step'] . " %s");
+                    $this->objData->setDescription("3. Anbieter Anwendungen");
+                    $this->objStepPool->step++;
+
+                    break;
+
+                /**
+                 * HOOK: allow to add custom logic
+                 */
+                case 2:
+                    // Load Container
+                    $arrHookPool = $this->objStepPool->hookPool;
+                    if(!is_array($arrHookPool))
+                    {
+                        $arrHookPool = array();
+                    }    
+                    
+                    $arrDataPool = $this->objStepPool->dataPool;
+                    if(!is_array($arrDataPool))
+                    {
+                        $arrDataPool = array();
+                    } 
+                    
+                    $arrFinishedKeys = $this->objStepPool->finishedKeys;
+                    if(!is_array($arrFinishedKeys))
+                    {
+                        $arrFinishedKeys = array();
+                    } 
+
+                    // Check hooks
+                    if (isset($GLOBALS['TL_HOOKS']['sync_To']) && is_array($GLOBALS['TL_HOOKS']['sync_To']))
+                    {
+                        foreach ($GLOBALS['TL_HOOKS']['sync_To'] as $intID => $callback)
+                        {
+                            // Skip finished hooks
+                            if(in_array($intID, $arrFinishedKeys))
+                            {
+                                continue;
+                            }
+                            
+                            // Create empty Container
+                            if (!key_exists($intID, $arrHookPool))
+                            {
+                                $arrHookPool[$intID] = new StepPool(array());
+                            }
+
+                            if (!key_exists($intID, $arrDataPool))
+                            {
+                                $arrDataPool[$intID] = new ContentData(array(), 1);
+                            }
+
+                            $this->import($callback[0]);
+                            $intReturn = $this->$callback[0]->$callback[1]($arrDataPool[$intID], $arrHookPool[$intID], $this->objSyncCtoCommunicationClient, $this->arrSyncSettings);
+
+                            switch ($intReturn)
+                            {
+                                case SyncCtoEnum::API_STATE_RUNNING:
+                                    return;
+
+                                case SyncCtoEnum::API_STATE_ERROR:
+                                    return;
+
+                                case SyncCtoEnum::API_STATE_FINISH:
+                                    return;
+
+                                default:
+                                    continue;
+                            }
+                        }
+                    }
+
+                    break;
+
+                /**
+                 * 
+                 */
+                case 3:
+                    // Show step information
+                    $this->objData->setState(SyncCtoEnum::WORK_OK);
+                    $this->objData->setDescription('All work done');
+
+                    $this->intStep++;
+
+                    break;
+            }
+        }
+        catch (Exception $exc)
+        {
+            $this->log(vsprintf("Error on synchronization client ID %s", array($this->Input->get("id"))), __CLASS__ . " " . __FUNCTION__, "ERROR");
+
+            $this->booError = true;
+            $this->strError = $exc->getMessage();
+            $this->objData->setState(SyncCtoEnum::WORK_ERROR);
+        }
+    }
+
+
+    /**
+     * Run final functions
+     */
+    private function pageSyncToShowStep6()
     {
         /* ---------------------------------------------------------------------
          * Init
@@ -3283,11 +3454,12 @@ class SyncCtoModuleClient extends BackendModule
             $this->objData->setState(SyncCtoEnum::WORK_ERROR);
         }
     }
-
+    
+    
     /**
      * File send part have fun, much todo here so let`s play a round :P
      */
-    private function pageSyncFromShowStep5()
+    private function pageSyncFromShowStep6()
     {
         /* ---------------------------------------------------------------------
          * Init

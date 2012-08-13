@@ -217,7 +217,7 @@ class tl_syncCto_clients_syncTo extends Backend
     public function onsubmit_callback(DataContainer $dc)
     {               
         $arrSyncSettings = array();
-
+        
         // Synchronization type
         if (is_array($this->Input->post("sync_options")) && count($this->Input->post("sync_options")) != 0)
         {
@@ -263,7 +263,31 @@ class tl_syncCto_clients_syncTo extends Backend
         {
             $arrSyncSettings["syncCto_AttentionFlag"] = false;
         }
+
+        // Search for additional post data
+        // Skip all known values
+        $arrFilter = array(
+            'FORM_SUBMIT',
+            'FORM_FIELDS',
+            'REQUEST_TOKEN',
+            'start_sync',
+            'sync_options',
+            'database_check',
+            'systemoperations_check',
+            'attentionFlag'
+        );
+
+        foreach (array_keys($_POST) as $strKey)
+        {
+            if (in_array($strKey, $arrFilter))
+            {
+                continue;
+            }
+
+            $arrSyncSettings["add_fields"][$strKey] = $this->Input->post($strKey);
+        }
         
+        // Save in Session
         $this->Session->set("syncCto_SyncSettings_" . $dc->id, $arrSyncSettings);
 
         $this->objSyncCtoHelper->checkSubmit(array(

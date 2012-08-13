@@ -101,5 +101,13 @@ class SyncCtoEnum
     
     const FILEINFORMATION_SMALL = 1;
     const FILEINFORMATION_BIG   = 2;
+    
+    /**
+     * State of 3. party extensions
+     */
+    
+    const API_STATE_RUNNING = 1;
+    const API_STATE_FINISH  = 2;
+    const API_STATE_ERROR   = 3;
 
 }
